@@ -99,6 +99,14 @@ class VerticalViewController: UIViewController, RAReorderableLayoutDelegate, RAR
         
     }
     
+    func collectionView(_ collectionView: UICollectionView,  willReachTopLimit at: IndexPath) {
+        
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, canwReachTopLimit indexPath: IndexPath) -> Bool {
+        return false
+    }
+    
     func collectionView(_ collectionView: UICollectionView, at atIndexPath: IndexPath, didMoveTo toIndexPath: IndexPath) {
         var photo: UIImage
         if (atIndexPath as NSIndexPath).section == 0 {

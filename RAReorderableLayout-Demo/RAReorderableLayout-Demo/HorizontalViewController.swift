@@ -22,6 +22,7 @@ class HorizontalViewController: UIViewController, RAReorderableLayoutDelegate, R
         collectionView.delegate = self
         collectionView.dataSource = self
         (collectionView.collectionViewLayout as! RAReorderableLayout).scrollDirection = .horizontal
+        (collectionView.collectionViewLayout as! RAReorderableLayout).setTopLimit(newTopLimit: 0.2)
         applyGradation()
         
         let aScalars = "A".unicodeScalars
@@ -85,6 +86,32 @@ class HorizontalViewController: UIViewController, RAReorderableLayoutDelegate, R
     
     func collectionView(_ collectionView: UICollectionView, at: IndexPath, willMoveTo toIndexPath: IndexPath) {
         
+    }
+    
+    func collectionView(_ collectionView: UICollectionView,  willReachTopLimit at: IndexPath) {
+        (collectionView.collectionViewLayout as! RAReorderableLayout).stopDragging(stop: true)
+
+        let alert = UIAlertController(title: "Alert", message: "Do you really want to delete this book ?", preferredStyle: UIAlertControllerStyle.alert)
+        alert.addAction(UIAlertAction(title: "Yes", style: UIAlertActionStyle.default, handler: { _ in
+            self.books.remove(at: at.row)
+            self.collectionView.performBatchUpdates({
+                self.collectionView.deleteItems(at: [at])
+            }, completion: {
+                (finished: Bool) in
+                (collectionView.collectionViewLayout as! RAReorderableLayout).resumeDragging(animated: false)
+                self.collectionView.reloadData()
+                
+            })
+            
+        }))
+        alert.addAction(UIAlertAction(title: "cancel", style: UIAlertActionStyle.default, handler: { _ in
+            (collectionView.collectionViewLayout as! RAReorderableLayout).resumeDragging(animated: true)
+            }))
+        self.present(alert, animated: true, completion: nil)
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, canwReachTopLimit indexPath: IndexPath) -> Bool {
+        return true
     }
     
     func collectionView(_ collectionView: UICollectionView, at: IndexPath, didMoveTo toIndexPath: IndexPath) {

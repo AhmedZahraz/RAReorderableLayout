@@ -3,6 +3,7 @@
 //  RAReorderableLayout
 //
 //  Created by Ryo Aoyama on 10/12/14.
+//  Updated by Ahmed Zahraz on 16/01/17.
 //  Copyright (c) 2014 Ryo Aoyama. All rights reserved.
 //
 
@@ -10,6 +11,8 @@ import UIKit
 
 public protocol RAReorderableLayoutDelegate: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, at: IndexPath, willMoveTo toIndexPath: IndexPath)
+    func collectionView(_ collectionView: UICollectionView,  willReachTopLimit at: IndexPath)
+    func collectionView(_ collectionView: UICollectionView, canwReachTopLimit indexPath: IndexPath) -> Bool
     func collectionView(_ collectionView: UICollectionView, at: IndexPath, didMoveTo toIndexPath: IndexPath)
     func collectionView(_ collectionView: UICollectionView, allowMoveAt indexPath: IndexPath) -> Bool
     func collectionView(_ collectionView: UICollectionView, at: IndexPath, canMoveTo: IndexPath) -> Bool
@@ -113,6 +116,11 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
     fileprivate var trigerPadding = UIEdgeInsets.zero
     
     fileprivate var scrollSpeedValue: CGFloat = 10.0
+    
+    fileprivate var stopDragging: Bool = false
+    
+    // must be between 0 and 1
+    fileprivate var topLimit: CGFloat = -1
     
     fileprivate var offsetFromTop: CGFloat {
         let contentOffset = collectionView!.contentOffset
@@ -260,6 +268,33 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
         }
     }
     
+    fileprivate func checkTopLimit() {
+        guard let fakeCell = cellFakeView,
+            let atIndexPath = fakeCell.indexPath else {
+                return
+        }
+        
+        // can move item
+        guard let canReachLimit = delegate?.collectionView(collectionView!, canwReachTopLimit: atIndexPath), canReachLimit, topLimit >= 0.0, topLimit <= 1.0 else {
+            return
+        }
+        
+        let toIndexPath = atIndexPath
+        
+        guard atIndexPath == toIndexPath else { return }
+        
+        // can move item
+        if let canMove = delegate?.collectionView(collectionView!, at: atIndexPath, canMoveTo: toIndexPath) , !canMove {
+            return
+        }
+        //print(fakeCell.frame.origin)
+        let point = fakeCell.frame.origin
+        let size = fakeCell.frame.size
+        if point.y < (size.height * topLimit * -1) {
+            delegate?.collectionView(collectionView!, willReachTopLimit: atIndexPath)
+        }
+    }
+    
     // move item
     fileprivate func moveItemIfNeeded() {
         guard let fakeCell = cellFakeView,
@@ -277,6 +312,7 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
         
         // will move item
         delegate?.collectionView(collectionView!, at: atIndexPath, willMoveTo: toIndexPath)
+        
         
         let attribute = self.layoutAttributesForItem(at: toIndexPath)!
         collectionView!.performBatchUpdates({
@@ -374,6 +410,40 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
         cancelDrag(nil)
     }
     
+    func setTopLimit(newTopLimit: CGFloat) {
+        if newTopLimit >= 0 && newTopLimit <= 1 {
+            topLimit = newTopLimit
+        }
+    }
+    
+    func stopDragging(stop: Bool) {
+        stopDragging = stop
+    }
+    
+    func resumeDragging(animated: Bool) {
+        stopDragging(stop: false)
+        guard cellFakeView != nil else { return }
+        
+        collectionView?.scrollsToTop = true
+        
+        fakeCellCenter = nil
+        
+        invalidateDisplayLink()
+        
+        if animated {
+            cellFakeView!.pushBackView {
+                self.cellFakeView!.removeFromSuperview()
+                self.cellFakeView = nil
+                self.invalidateLayout()
+            }
+        } else {
+            self.cellFakeView!.removeFromSuperview()
+            self.cellFakeView = nil
+            self.invalidateLayout()
+        }
+
+    }
+    
     fileprivate func cancelDrag(_ toIndexPath: IndexPath!) {
         guard cellFakeView != nil else { return }
         
@@ -431,7 +501,9 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
             delegate?.collectionView(self.collectionView!, collectionView: self, didBeginDraggingItemAt: indexPath!)
             
         case .cancelled, .ended:
-            cancelDrag(indexPath)
+            if !stopDragging {
+                cancelDrag(indexPath)
+            }
         default:
             break
         }
@@ -448,6 +520,7 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
                 cellFakeView.center.x = fakeCellCenter.x + panTranslation.x
                 cellFakeView.center.y = fakeCellCenter.y + panTranslation.y
                 
+                checkTopLimit()
                 beginScrollIfNeeded()
                 moveItemIfNeeded()
             case .cancelled, .ended:
