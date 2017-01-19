@@ -406,21 +406,21 @@ open class RAReorderableLayout: UICollectionViewFlowLayout, UIGestureRecognizerD
             }
         }
     
-    open func cancelDrag() {
+    func cancelDrag() {
         cancelDrag(nil)
     }
     
-    func setTopLimit(newTopLimit: CGFloat) {
+    open func setTopLimit(newTopLimit: CGFloat) {
         if newTopLimit >= 0 && newTopLimit <= 1 {
             topLimit = newTopLimit
         }
     }
     
-    func stopDragging(stop: Bool) {
+    open func stopDragging(stop: Bool) {
         stopDragging = stop
     }
     
-    func resumeDragging(animated: Bool) {
+    open func resumeDragging(animated: Bool) {
         stopDragging(stop: false)
         guard cellFakeView != nil else { return }
         
